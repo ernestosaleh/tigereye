@@ -3,7 +3,6 @@ import pandas as pd
 import streamlit as st
 import folium
 import json
-from sqlalchemy import create_engine
 from streamlit_folium import folium_static
 import branca
 
@@ -13,16 +12,10 @@ hoy = datetime.now()
 
 col1, col2 = st.columns([3,1])
 
-#Create connection
-user="sugroup"
-password="fimenos_injustos69"
-host="sugroup.mysql.database.azure.com"
-port=3306
-database="prueba1"
-my_conn = create_engine(rf"mysql+mysqldb://{user}:{password}@{host}:{port}/{database}")
+dfo=pd.read_csv("Page1.csv")
+new_cols=["tipo", "fecha", "valor", "lugar"]
+result_df=dfo.rename(columns={dfo.columns[i]: new_cols[i] for i in range(dfo.shape[1])})
 
-query = f"SELECT * FROM violencia"
-result_df=pd.read_sql(query,my_conn)
 result_df["fecha"] = pd.to_datetime(result_df["fecha"]).dt.date
 
 violencia_rango = st.slider(
@@ -60,7 +53,7 @@ poblacion = {
 }
 
 def calculate_values(violencia_rango,multiple, radio_valor):
-    mask = (result_df['fecha'] > pd.to_datetime(violencia_rango[0])) & (result_df['fecha'] <= pd.to_datetime(violencia_rango[1]))
+    mask = (result_df['fecha'] > violencia_rango[0].date()) & (result_df['fecha'] <= (violencia_rango[1].date()))
     postdf = result_df.loc[mask]
     filtered_df = postdf[postdf['tipo'].isin(multiple)]
     filtered_df = filtered_df.groupby(['lugar'])['valor'].sum().reset_index()
@@ -68,7 +61,7 @@ def calculate_values(violencia_rango,multiple, radio_valor):
     filtered_df["percapita"] = (filtered_df["valor"] / filtered_df["clave_municipio"].map(poblacion)) * 1000
     variable = []
 
-    if radio_valor == "Percapita":
+    if radio_valor == "Casos Percapita":
         variable = [int(filtered_df["percapita"].max()), "percapita"]
     else:
         variable = [int(filtered_df["valor"].max()), "valor"]
@@ -85,7 +78,7 @@ def calculate_values(violencia_rango,multiple, radio_valor):
         fill_color='YlOrRd',
         fill_opacity=0.7,
         line_opacity=0.2,
-        legend_name='Violencia (%)'
+        legend_name='N. de casos'
     ).add_to(map)
     
     folium_static(map)
@@ -94,7 +87,7 @@ def calculate_values(violencia_rango,multiple, radio_valor):
 with col2:
     radio_valor = st.radio(
         "Rasgo a considerar",
-        ('N. de personas', 'Percapita'),
+        ('N. de casos', 'Casos Percapita'),
         key="N. de personas",
     )
 
